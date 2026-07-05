@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Database / runtime data
+.data/
+*.db/
+
+# Logs
+*.log
+
+# Caches
+.ruff_cache
+.pytest_cache
+.mypy_cache
+.ty_cache
+
+# Local scripts / notes
+local/
+
+# Bot command caches
+commands.json
