@@ -3,54 +3,61 @@
 ## Commands
 
 ```bash
-bun run check          # typecheck + lint (run this after changes)
-bun run dev            # watch mode
-bun run start          # single run
-bun run lint:fix       # auto-fix lint issues
+uv run ruff check .            # lint (run this after changes)
+uv run ruff check --fix .      # auto-fix lint issues
+uv run ty check nationseal     # type check
+uv run nationseal              # run the bot
+python -m nationseal           # equivalent entry point
+```
+
+Full verification:
+
+```bash
+uv run ruff check . && uv run ty check nationseal
 ```
 
 ## Architecture
 
-Discord bot using Seyfert framework with a JSON file database. All commands live under `/sanctions` and use Components v2 for responses (Container/TextDisplay, never embeds).
+Discord bot using **discord.py** with a JSON file database. All commands live under `/sanctions` and use Components v2 for responses (Container/TextDisplay, never embeds).
 
-**Entry point**: `src/index.ts` — loads the JSON database, starts bot, loads component handlers with absolute path via `client.loadComponents()`.
+**Entry point**: `nationseal/main.py` — loads the JSON database, starts the bot, syncs slash commands globally.
 
 **Key directories**:
-- `src/commands/sanctions/` — all slash commands as SubCommand classes
-- `src/components/` — ComponentCommand handlers (pagination buttons)
-- `src/lib/` — DB access (`db.ts`, `jsondb.ts`), permissions (`permissions.ts`), Components v2 builders (`components.ts`), voting logic (`sanctions.ts`)
+- `nationseal/commands/sanctions.py` — all slash commands as a discord.py Cog
+- `nationseal/components/paginator.py` — Component interaction handler (pagination buttons)
+- `nationseal/lib/` — DB access (`db.py`, `jsondb.py`), permissions (`permissions.py`), Components v2 builders (`components/builders.py`), voting logic (`sanctions.py`)
 
 ## Critical Patterns
 
 ### Components v2 (Discord API)
 
-**Never** send `content` together with `COMPONENTS_V2_FLAG`. Discord rejects this with `MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2`.
+**Never** send `content` together with the Components v2 flag. Discord rejects this with `MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2`.
+
+Components v2 messages are built with `discord.ui.LayoutView`, `Container`, `TextDisplay`, `Separator`, `ActionRow`, and `Button`. The `LayoutView` automatically sets the Components v2 flag when containers are present.
 
 For plain text responses:
-```ts
-await ctx.editOrReply({
-  components: [textOnlyContainer("message")],
-  flags: COMPONENTS_V2_FLAG,
-});
+
+```python
+view = build_layout(text_only_container("message"))
+await interaction.response.send_message(view=view, ephemeral=True)
 ```
 
 For responses with detailed containers:
-```ts
-await ctx.editOrReply({
-  components: [
-    textOnlyContainer("summary line"),
-    buildRequestContainer(request),
-  ],
-  flags: COMPONENTS_V2_FLAG,
-});
+
+```python
+view = build_layout(
+    text_only_container("summary line"),
+    build_request_container(request),
+)
+await interaction.response.send_message(view=view, ephemeral=True)
 ```
 
 ### Permission Model
 
-Commands are visible to everyone (no `defaultMemberPermissions` on parent command). Permission gates enforced in code:
+Commands are visible to everyone (no `default_permissions` on the parent group). Permission gates enforced in code:
 - `submit`, `appeal`, `check`, `info` — public
-- `approve`, `decline`, `list`, `enforce` — require reviewer (`requireReviewer()`)
-- `reviewer-add`, `reviewer-remove` — require owner (`requireOwner()`)
+- `approve`, `decline`, `list`, `enforce` — require reviewer (`require_reviewer()`)
+- `reviewer-add`, `reviewer-remove` — require owner (`require_owner()`)
 
 ### Sanctions List
 
@@ -62,27 +69,19 @@ Custom ID format for pagination buttons:
 - Navigation: `sanction_list|<pageNumber>`
 - Vote: `sanction_list|<pageNumber>|<approve|decline>`
 
-### Component Handler Loading
-
-Component handlers in `src/components/` are loaded with an absolute path:
-```ts
-const componentsDir = path.join(process.cwd(), "src", "components");
-await client.loadComponents(componentsDir);
-```
-
-Relative paths like `"src/components"` or `"./components"` fail because `magicImport()` in Seyfert expects absolute paths.
-
 ### JSON Database
 
 Default mode stores all data in the JSON file at `DATABASE_PATH` (default `./.data/data.json`). It is loaded into memory on startup and flushed to disk after every mutating operation.
 
+The `JsonDatabase` class uses a `modified` flag so shutdown flushes only happen when data has actually changed. This prevents an empty in-memory dataset from overwriting a valid data file on restart.
+
 ### DB Access Pattern
 
-Collections accessed via exported objects in `src/lib/db.ts`:
-- `sanctionRequests.create/get/update/listByStatus`
-- `sanctions.get/upsert/remove/listAll`
-- `reviewers.add/remove/list/isReviewer`
-- `guildState.get/set/markEnforced`
+Collections accessed via exported objects in `nationseal/db.py`:
+- `sanction_requests.create/get/update/list_by_status`
+- `sanctions.get/upsert/remove/list_all`
+- `reviewers.add/remove/list_all/is_reviewer`
+- `guild_state.get/set/mark_enforced`
 
 All IDs are stored as plain strings in the JSON file.
 
@@ -95,7 +94,7 @@ Commands with `id` options (`approve`, `decline`, `info`) use autocomplete to sh
 
 ## Style
 
-- Tabs for indentation (biome.json)
-- Double quotes (biome.json)
-- All responses are ephemeral (`deferReply(true)`)
-- Use `escapeMarkdown()` from `components.ts` for user-supplied text in markdown
+- Tabs for indentation (configured in `pyproject.toml` under `[tool.ruff.format]`)
+- Double quotes (configured in `pyproject.toml`)
+- All responses are ephemeral (`defer(ephemeral=True)`)
+- Use `_escape_markdown()` from `components/builders.py` for user-supplied text in markdown

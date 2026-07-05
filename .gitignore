@@ -1,42 +1,45 @@
-# dependencies (bun install)
-node_modules
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
 
-# output
-out
-dist
-*.tgz
 
-# code coverage
-coverage
-*.lcov
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
 
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+# OS
+.DS_Store
+Thumbs.db
 
-# dotenv environment variable files
+# Environment variables
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
 
-# caches
-.eslintcache
-.cache
-*.tsbuildinfo
-
-# seyfert command cache
-commands.json
-
-# SurrealDB data directories (embedded mode storage)
+# Database / runtime data
 .data/
-nationseal.db/
 *.db/
 
-# IntelliJ based IDEs
-.idea
+# Logs
+*.log
 
-# Finder (MacOS) folder config
-.DS_Store
+# Caches
+.ruff_cache
+.pytest_cache
+.mypy_cache
+.ty_cache
+
+# Local scripts / notes
+local/
+
+# Bot command caches
+commands.json
