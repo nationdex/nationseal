@@ -9,7 +9,14 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
-		"check": "bun run typecheck && bun run lint"
+		"check": "bun run typecheck && bun run lint",
+		"pm2:start": "pm2 start \"bun run src/index.ts\" --name nationseal",
+		"pm2:stop": "pm2 stop nationseal",
+		"pm2:restart": "pm2 restart nationseal",
+		"pm2:delete": "pm2 delete nationseal",
+		"pm2:logs": "pm2 logs nationseal",
+		"pm2:status": "pm2 status",
+		"pm2:save": "pm2 save"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"
@@ -19,6 +26,7 @@
 	},
 	"dependencies": {
 		"@biomejs/biome": "^2.5.2",
+		"pm2": "^6.0.5",
 		"seyfert": "^4.4.1"
 	}
 }
