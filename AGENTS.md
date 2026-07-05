@@ -22,10 +22,14 @@ Discord bot using **discord.py** with a JSON file database. All commands live un
 
 **Entry point**: `nationseal/main.py` — loads the JSON database, starts the bot, syncs slash commands globally.
 
-**Key directories**:
+**Key modules**:
 - `nationseal/commands/sanctions.py` — all slash commands as a discord.py Cog
 - `nationseal/components/paginator.py` — Component interaction handler (pagination buttons)
-- `nationseal/lib/` — DB access (`db.py`, `jsondb.py`), permissions (`permissions.py`), Components v2 builders (`components/builders.py`), voting logic (`sanctions.py`)
+- `nationseal/components/builders.py` — Components v2 UI builders
+- `nationseal/sanctions.py` — voting logic and cross-guild enforcement
+- `nationseal/permissions.py` — owner/reviewer permission checks
+- `nationseal/db.py` — async database collection wrappers
+- `nationseal/jsondb.py` — in-memory JSON file database implementation
 
 ## Critical Patterns
 
@@ -98,3 +102,9 @@ Commands with `id` options (`approve`, `decline`, `info`) use autocomplete to sh
 - Double quotes (configured in `pyproject.toml`)
 - All responses are ephemeral (`defer(ephemeral=True)`)
 - Use `_escape_markdown()` from `components/builders.py` for user-supplied text in markdown
+
+## Gotchas
+
+- **Module naming**: `nationseal/models.py` (not `types.py`) to avoid shadowing stdlib `types` module. This breaks `typing` imports if named `types.py`.
+- **PM2 startup**: Use `pm2 start "uv run python -m nationseal" --name nationseal` (not `uv run nationseal`) because the package isn't installed in editable mode.
+- **Environment loading**: `config.py` auto-loads `.env` from project root via `python-dotenv`, so PM2 picks up env vars without explicit configuration.
