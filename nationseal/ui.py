@@ -678,7 +678,7 @@ class SanctionsCog(commands.Cog):
 
 	@sanctions.command(
 		name="local-enforce",
-		description="Manually push the shared sanction list into a server (bypasses anti-raid auto-block; owners only)",
+		description="Manually push the shared sanction list into a server (owners only)",
 	)
 	@app_commands.describe(guild="The server ID to manually enforce the sanction list in")
 	async def local_enforce(self, interaction: discord.Interaction, guild: str) -> None:

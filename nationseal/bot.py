@@ -43,7 +43,6 @@ class Config:
 			604_800, max(0, _parse_number(os.getenv("BAN_DELETE_MESSAGE_SECONDS"), 0))
 		)
 		self.database_path: str = os.getenv("DATABASE_PATH", "./.data/data.json")
-		self.antiraid_bot_ids: list[str] = _parse_ids(os.getenv("ANTIRAID_BOT_IDS"))
 
 		if not self.bot_token:
 			raise RuntimeError("[nationseal] BOT_TOKEN is not set in environment variables.")
@@ -74,7 +73,6 @@ class NationSealBot(commands.Bot):
 			required_approvals=config.required_approvals,
 			ban_delete_message_seconds=config.ban_delete_message_seconds,
 			owner_ids=config.owner_ids,
-			antiraid_bot_ids=config.antiraid_bot_ids,
 		)
 		await data.connect_database()
 		await self.add_cog(SanctionsCog(self))
@@ -90,42 +88,6 @@ class NationSealBot(commands.Bot):
 		)
 
 	async def on_guild_join(self, guild) -> None:
-		antiraid = await data.maybe_block_for_antiraid(self, guild)
-
-		if antiraid.blocked:
-			owner_mention = f"<@{guild.owner_id}>" if guild.owner_id else "owner"
-			dm_content = data.build_antiraid_message(
-				guild_name=guild.name,
-				guild_id=guild.id,
-				owner_mention=owner_mention,
-				detected_bots=antiraid.detectedBots,
-			)
-			recipients = [uid for uid in [guild.owner_id, *config.owner_ids] if uid is not None]
-			outcomes = await data.dm_users(self, recipients, dm_content)
-			owner_delivered = next(
-				(o.delivered for o in outcomes if o.recipient == str(guild.owner_id)), None
-			)
-
-			logger.warning(
-				data.build_owner_fallback_message(
-					guild_name=guild.name,
-					guild_id=guild.id,
-					owner_id=guild.owner_id,
-					owner_dm_failed=not owner_delivered if owner_delivered is not None else True,
-					detected_bots=antiraid.detectedBots,
-				)
-			)
-			return
-
-		existing = await data.guild_states().get(str(guild.id))
-		if existing and existing.get("antiraidBlocked"):
-			logger.info(
-				"[nationseal] Skipping auto-enforce in %s (%s) — anti-raid previously detected.",
-				guild.id,
-				guild.name,
-			)
-			return
-
 		result = await data.enforce_all_sanctions_on_guild(self, guild.id)
 		logger.info(
 			"[nationseal] Joined guild %s (%s). Synced %d/%d active sanctions.",
