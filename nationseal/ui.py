@@ -6,7 +6,7 @@ import logging
 import math
 from collections.abc import Awaitable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import discord
 import discord.ui as ui
@@ -412,18 +412,6 @@ def _respond(
 
 # Per-command autocomplete wrappers (discord.py requires coroutine functions,
 # not lambdas, and we need different status filters per command).
-async def _approve_autocomplete(
-	interaction: discord.Interaction, current: str
-) -> list[app_commands.Choice[str]]:
-	return await _id_autocomplete(interaction, current, statuses=["pending"])
-
-
-async def _decline_autocomplete(
-	interaction: discord.Interaction, current: str
-) -> list[app_commands.Choice[str]]:
-	return await _id_autocomplete(interaction, current, statuses=["pending"])
-
-
 async def _info_autocomplete(
 	interaction: discord.Interaction, current: str
 ) -> list[app_commands.Choice[str]]:
@@ -561,86 +549,6 @@ class SanctionsCog(commands.Cog):
 				interaction,
 				text_only_container(
 					"Something went wrong while submitting the appeal. Please try again later."
-				),
-			)
-
-	# ── approve / decline ────────────────────────────────────────────
-
-	@sanctions.command(
-		name="approve", description="Cast a reviewer approval vote on a pending submission"
-	)
-	@app_commands.describe(id="The submission ID to approve")
-	@app_commands.autocomplete(id=_approve_autocomplete)
-	async def approve(self, interaction: discord.Interaction, id: str) -> None:  # noqa: A002
-		await interaction.response.defer(ephemeral=True)
-		if not await require_reviewer(interaction):
-			return
-
-		try:
-			result = await data.cast_vote(self.bot, id.strip(), interaction.user.id, "approve")
-			request = cast(SanctionRequest, result["request"])
-			lines = [f"Vote recorded on `{request['id']}`."]
-			if result.get("justResolved"):
-				enforcement = result.get("enforcement")
-				succeeded = getattr(enforcement, "guilds_succeeded", 0) if enforcement else 0
-				attempted = getattr(enforcement, "guilds_attempted", 0) if enforcement else 0
-				lines.append(
-					f"✅ Threshold reached — {request['type']} enforced on {succeeded}/{attempted} servers."
-				)
-			await _respond(
-				interaction,
-				text_only_container("\n".join(lines)),
-				build_request_container(request),
-			)
-		except data.VoteError as exc:
-			await _respond(interaction, text_only_container(str(exc)))
-		except Exception as exc:  # noqa: BLE001
-			logger.error("[nationseal] approve command failed: %s", exc)
-			await _respond(
-				interaction,
-				text_only_container(
-					"Something went wrong while recording your vote. Please try again later."
-				),
-			)
-
-	@sanctions.command(
-		name="decline", description="Cast a reviewer decline vote on a pending submission"
-	)
-	@app_commands.describe(
-		id="The submission ID to decline", reason="Why is this submission being declined?"
-	)
-	@app_commands.autocomplete(id=_decline_autocomplete)
-	async def decline(
-		self,
-		interaction: discord.Interaction,
-		id: str,
-		reason: str | None = None,  # noqa: A002
-	) -> None:
-		await interaction.response.defer(ephemeral=True)
-		if not await require_reviewer(interaction):
-			return
-
-		try:
-			result = await data.cast_vote(
-				self.bot, id.strip(), interaction.user.id, "decline", reason
-			)
-			request = cast(SanctionRequest, result["request"])
-			lines = [f"Vote recorded on `{request['id']}`."]
-			if result.get("justResolved"):
-				lines.append("❌ Threshold reached — submission declined.")
-			await _respond(
-				interaction,
-				text_only_container("\n".join(lines)),
-				build_request_container(request),
-			)
-		except data.VoteError as exc:
-			await _respond(interaction, text_only_container(str(exc)))
-		except Exception as exc:  # noqa: BLE001
-			logger.error("[nationseal] decline command failed: %s", exc)
-			await _respond(
-				interaction,
-				text_only_container(
-					"Something went wrong while recording your vote. Please try again later."
 				),
 			)
 
