@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-nationseal = "nationseal.main:main"
+nationseal = "nationseal.bot:main"
 
 [dependency-groups]
 dev = [
