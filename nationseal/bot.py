@@ -34,6 +34,15 @@ def _parse_number(value: str | None, fallback: int) -> int:
 	return parsed if parsed > 0 else fallback
 
 
+def _parse_int_or_none(value: str | None) -> int | None:
+	if not value or not value.strip():
+		return None
+	try:
+		return int(value.strip())
+	except ValueError:
+		return None
+
+
 class Config:
 	def __init__(self) -> None:
 		self.bot_token: str = os.getenv("BOT_TOKEN", "")
@@ -43,6 +52,7 @@ class Config:
 			604_800, max(0, _parse_number(os.getenv("BAN_DELETE_MESSAGE_SECONDS"), 0))
 		)
 		self.database_path: str = os.getenv("DATABASE_PATH", "./.data/data.json")
+		self.reviewer_channel_id: int | None = _parse_int_or_none(os.getenv("REVIEWER_CHANNEL_ID"))
 
 		if not self.bot_token:
 			raise RuntimeError("[nationseal] BOT_TOKEN is not set in environment variables.")
@@ -73,6 +83,7 @@ class NationSealBot(commands.Bot):
 			required_approvals=config.required_approvals,
 			ban_delete_message_seconds=config.ban_delete_message_seconds,
 			owner_ids=config.owner_ids,
+			reviewer_channel_id=config.reviewer_channel_id,
 		)
 		await data.connect_database()
 		await self.add_cog(SanctionsCog(self))

@@ -77,6 +77,7 @@ _guild_states: GuildStateCollection | None = None
 _required_approvals: int = 2
 _ban_delete_message_seconds: int = 0
 _owner_ids: list[str] = []
+_reviewer_channel_id: int | None = None
 
 
 def init_runtime(
@@ -84,10 +85,11 @@ def init_runtime(
 	required_approvals: int,
 	ban_delete_message_seconds: int,
 	owner_ids: list[str],
+	reviewer_channel_id: int | None,
 ) -> None:
 	"""Wire the global DB + config used by the business-logic functions below."""
 	global _db, _sanction_requests, _sanctions, _reviewers, _guild_states
-	global _required_approvals, _ban_delete_message_seconds, _owner_ids
+	global _required_approvals, _ban_delete_message_seconds, _owner_ids, _reviewer_channel_id
 
 	_db = JsonDatabase(database_path)
 	_sanction_requests = SanctionRequests(_db)
@@ -97,6 +99,7 @@ def init_runtime(
 	_required_approvals = required_approvals
 	_ban_delete_message_seconds = ban_delete_message_seconds
 	_owner_ids = owner_ids
+	_reviewer_channel_id = reviewer_channel_id
 
 
 def _now_iso() -> str:
@@ -658,3 +661,7 @@ def is_owner(user_id: int | str) -> bool:
 
 def owner_ids() -> list[str]:
 	return list(_owner_ids)
+
+
+def reviewer_channel_id() -> int | None:
+	return _reviewer_channel_id

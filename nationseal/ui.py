@@ -6,7 +6,7 @@ import logging
 import math
 from collections.abc import Awaitable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import discord
 import discord.ui as ui
@@ -246,6 +246,7 @@ async def _reply_text(interaction: discord.Interaction, message: str) -> None:
 
 PER_PAGE = 1
 LIST_CUSTOM_ID_PREFIX = "sanction_list"
+NOTIFY_CUSTOM_ID_PREFIX = "sanction_notify"
 
 
 class _ParsedCustomId:
@@ -270,6 +271,54 @@ def _parse_custom_id(custom_id: str) -> _ParsedCustomId:
 	if len(parts) == 2:
 		return _ParsedCustomId("navigate", page)
 	return _ParsedCustomId("invalid", 0)
+
+
+def _parse_notify_custom_id(
+	custom_id: str,
+) -> tuple[str, str] | None:
+	"""Parse 'sanction_notify|<submission_id>|<approve|decline>'."""
+	parts = custom_id.split("|")
+	if len(parts) != 3 or parts[0] != NOTIFY_CUSTOM_ID_PREFIX:
+		return None
+	if parts[2] not in ("approve", "decline"):
+		return None
+	return parts[1], parts[2]
+
+
+async def _send_submission_notification(bot: Bot, submission: SanctionRequest) -> None:
+	"""Send a message to the reviewer channel pinging all reviewers."""
+	channel_id = data.reviewer_channel_id()
+	if channel_id is None:
+		return
+	channel = bot.get_channel(channel_id)
+	if channel is None or not isinstance(channel, discord.abc.Messageable):
+		logger.warning("[nationseal] Reviewer channel %s not found or not messageable.", channel_id)
+		return
+
+	reviewers = await data.reviewers().list_all()
+	mentions = " ".join(f"<@{r['id']}>" for r in reviewers)
+	header = f"## New {'ban' if submission['type'] == 'ban' else 'unban'} submission\n{mentions}"
+
+	approve = Button(
+		style=ButtonStyle.green,
+		label="Approve",
+		custom_id=f"{NOTIFY_CUSTOM_ID_PREFIX}|{submission['id']}|approve",
+	)
+	decline = Button(
+		style=ButtonStyle.red,
+		label="Decline",
+		custom_id=f"{NOTIFY_CUSTOM_ID_PREFIX}|{submission['id']}|decline",
+	)
+
+	view = build_layout(
+		ui.Container(text_display(header), accent_colour=STATUS_COLOR[submission["status"]]),
+		build_request_container(submission),
+		build_action_row(approve, decline),
+	)
+	try:
+		await channel.send(view=view)
+	except Exception as exc:  # noqa: BLE001
+		logger.error("[nationseal] Failed to send submission notification: %s", exc)
 
 
 async def _build_list_view(page: int) -> ui.LayoutView:
@@ -301,6 +350,13 @@ class ComponentsCog(commands.Cog):
 		if interaction.data is None:
 			return
 		custom_id = interaction.data.get("custom_id", "")
+
+		# Handle notification buttons (reviewer channel messages).
+		notify = _parse_notify_custom_id(custom_id)
+		if notify is not None:
+			await self._handle_notify_vote(interaction, notify[0], notify[1])
+			return
+
 		parsed = _parse_custom_id(custom_id)
 		if parsed.kind == "invalid":
 			return
@@ -320,6 +376,34 @@ class ComponentsCog(commands.Cog):
 			await self._handle_vote(interaction, parsed.page, parsed.action)
 		else:
 			await self._handle_navigation(interaction, parsed.page)
+
+	async def _handle_notify_vote(
+		self, interaction: discord.Interaction, submission_id: str, action: str
+	) -> None:
+		try:
+			result = await data.cast_vote(self.bot, submission_id, interaction.user.id, action)
+			request = cast(SanctionRequest, result["request"])
+			lines = [f"Vote recorded on `{request['id']}` ({action})."]
+			if result.get("justResolved"):
+				enforcement = result.get("enforcement")
+				succeeded = getattr(enforcement, "guilds_succeeded", 0) if enforcement else 0
+				attempted = getattr(enforcement, "guilds_attempted", 0) if enforcement else 0
+				lines.append(
+					f"✅ Threshold reached — {request['type']} enforced on {succeeded}/{attempted} servers."
+				)
+			await interaction.response.edit_message(
+				view=build_layout(
+					text_only_container("\n".join(lines)),
+					build_request_container(request),
+				)
+			)
+		except data.VoteError as exc:
+			await interaction.response.send_message(
+				view=build_layout(text_only_container(str(exc))),
+				ephemeral=True,
+			)
+		except Exception as exc:  # noqa: BLE001
+			logger.error("[nationseal] notify vote failed: %s", exc)
 
 	async def _handle_navigation(self, interaction: discord.Interaction, page: int) -> None:
 		try:
@@ -491,6 +575,7 @@ class SanctionsCog(commands.Cog):
 				),
 				build_request_container(request),
 			)
+			await _send_submission_notification(self.bot, request)
 		except Exception as exc:  # noqa: BLE001
 			logger.error("[nationseal] submit command failed: %s", exc)
 			await _respond(
@@ -543,6 +628,7 @@ class SanctionsCog(commands.Cog):
 				),
 				build_request_container(request),
 			)
+			await _send_submission_notification(self.bot, request)
 		except Exception as exc:  # noqa: BLE001
 			logger.error("[nationseal] appeal command failed: %s", exc)
 			await _respond(
