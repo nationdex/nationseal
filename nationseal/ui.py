@@ -68,7 +68,7 @@ STATUS_LABEL: dict[str, str] = {
 
 
 def _escape_markdown(text: str) -> str:
-	return "".join(f"\\{ch}" if ch in "*_`~|>" else ch for ch in text)
+	return "".join(f"\\{ch}" if ch in "\\*_`~|>" else ch for ch in text)
 
 
 def _discord_timestamp(iso_string: str, *, fmt: str = "R") -> str:
