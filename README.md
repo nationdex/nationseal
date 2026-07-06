@@ -70,22 +70,6 @@ https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&permissions=4&scope
 
    On boot, NationSeal loads its JSON data file, then starts the Discord gateway connection and syncs its slash commands globally.
 
-### PM2 (production)
-
-```bash
-pm2 start "uv run nationseal" --name nationseal
-pm2 save
-```
-
-Other useful PM2 commands:
-
-| Command | Action |
-| --- | --- |
-| `pm2 stop nationseal` | Stop the bot |
-| `pm2 restart nationseal` | Restart it |
-| `pm2 logs nationseal` | Tail logs |
-| `pm2 status` | Show process table |
-
 ## Development
 
 ```bash
@@ -99,22 +83,10 @@ uv run ruff check . && uv run ty check nationseal  # full check
 
 ```
 pyproject.toml              UV project metadata and tool config
-main.py                     Thin launcher at repo root
 nationseal/
-  main.py                   Entry point
-  bot.py                    discord.py client + event hooks
-  config.py                 Environment variable parsing
-  db.py                     Async JSON database collection wrappers
-  jsondb.py                 In-memory JSON file database
-  components/builders.py    Components v2 UI builders
-  components/paginator.py   Button interaction handler for /sanctions list
-  commands/sanctions.py     /sanctions slash command tree
-  events/guild_create.py    New-guild sanction sync + anti-raid logic
-  permissions.py            Owner / reviewer checks
-  sanctions.py              Voting + cross-guild enforcement
-  antiraid.py               Anti-raid bot detection
-  dm.py                     DM helpers for anti-raid notifications
-  types.py                  Shared domain TypedDicts
+  __init__.py
+  __main__.py
+  bot.py
+  data.py
+  ui.py
 ```
-
-This project was migrated from TypeScript/Seyfert to Python/discord.py.
