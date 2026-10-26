@@ -9,7 +9,6 @@ venv/
 ENV/
 env/
 
-
 # IDEs
 .idea
 .vscode
@@ -43,3 +42,14 @@ local/
 
 # Bot command caches
 commands.json
+
+# AI agents
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+CLAUDE.local.md
+.claude
+.cursor
+.gemini
+.opencode
+.antigravity
